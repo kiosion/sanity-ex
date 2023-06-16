@@ -43,7 +43,7 @@ defmodule SanityEx.Client do
       :dataset => dataset,
       :api_version => api_version,
       :asset_url => asset_url,
-      :token => token,
+      :token => token
     }
 
     {:ok, state}
@@ -82,10 +82,11 @@ defmodule SanityEx.Client do
   end
 
   defp construct_query_url(state, query, api_cdn) do
-    api = case api_cdn do
-      true -> "api"
-      false -> "apicdn"
-    end
+    api =
+      case api_cdn do
+        true -> "api"
+        false -> "apicdn"
+      end
 
     [
       "https://",
@@ -142,8 +143,13 @@ defmodule SanityEx.Client do
       {:ok, sanity_response} | {:error, {:sanity_error, status_code, message}} | {:error, {:fetch_error, message}} | {:error, {:params, message}}
 
   """
-  @spec query(String.t(), boolean()) :: {:ok, String.t()} | {:error, {:sanity_error, integer(), String.t()}} | {:error, {:fetch_error, String.t()}} | {:error, {:params, String.t()}}
-  def query(query_str, api_cdn \\ true), do: GenServer.call(__MODULE__, {:fetch, query_str, api_cdn})
+  @spec query(String.t(), boolean()) ::
+          {:ok, String.t()}
+          | {:error, {:sanity_error, integer(), String.t()}}
+          | {:error, {:fetch_error, String.t()}}
+          | {:error, {:params, String.t()}}
+  def query(query_str, api_cdn \\ true),
+    do: GenServer.call(__MODULE__, {:fetch, query_str, api_cdn})
 
   @doc """
   Executes multiple GROQ queries against the Sanity API asynchronously.
@@ -171,7 +177,9 @@ defmodule SanityEx.Client do
       ]
 
   """
-  @spec query_async([String.t()], boolean()) :: [{String.t(), {:ok, String.t()} | {:error, any()}}]
+  @spec query_async([String.t()], boolean()) :: [
+          {String.t(), {:ok, String.t()} | {:error, any()}}
+        ]
   def query_async(queries, api_cdn \\ true) do
     queries
     |> Enum.map(&Task.async(fn -> {&1, GenServer.call(__MODULE__, {:fetch, &1, api_cdn})} end))
@@ -199,7 +207,8 @@ defmodule SanityEx.Client do
 
   """
   @spec url_for(String.t(), map()) :: {:ok, String.t()} | {:error, {:params, String.t()}}
-  def url_for(asset_id, query_params \\ %{}), do: GenServer.call(__MODULE__, {:url_for, asset_id, query_params})
+  def url_for(asset_id, query_params \\ %{}),
+    do: GenServer.call(__MODULE__, {:url_for, asset_id, query_params})
 
   @doc """
   Executes a list of patches on the Sanity API.
@@ -248,61 +257,70 @@ defmodule SanityEx.Client do
 
   def handle_call(:get_query_url, _from, state), do: {:reply, state[:query_url], state}
   def handle_call(:get_asset_url, _from, state), do: {:reply, state[:asset_url], state}
+
   def handle_call({:fetch, query, api_cdn}, _from, state) do
     http_client = Application.get_env(:sanityex, :http_client, Sanityex.DefaultHTTPClient)
 
     with {:ok, query} <- is_valid_query?(query),
-         {:ok, url}   <- is_valid_url?(construct_query_url(state, query, api_cdn)),
-         headers      <- get_headers(state[:token])
-    do
+         {:ok, url} <- is_valid_url?(construct_query_url(state, query, api_cdn)),
+         headers <- get_headers(state[:token]) do
       case http_client.get(url, headers) do
         {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
           {:reply, {:ok, body}, state}
+
         {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
           {:reply, {:error, {:sanity_error, status_code, body}}, state}
+
         {:error, %HTTPoison.Error{reason: reason}} ->
           {:reply, {:error, {:fetch_error, reason}}, state}
+
         _ ->
           {:reply, {:error, {:fetch_error, "Unknown error occured during request"}}, state}
       end
     else
       {:error, :invalid_query} ->
         {:reply, {:error, {:params, "Query must be a non-empty string"}}, state}
+
       {:error, :invalid_url} ->
         {:reply, {:error, {:params, "Query URL must be a valid URL"}}, state}
     end
   end
+
   def handle_call({:url_for, asset_id, query_params}, _from, state) do
     with {:ok, asset_id} <- is_valid_asset?(asset_id),
-         {:ok, url}      <- is_valid_url?(state[:asset_url] <> asset_id)
-    do
+         {:ok, url} <- is_valid_url?(state[:asset_url] <> asset_id) do
       case query_params do
         %{} ->
           {:reply, {:ok, url}, state}
+
         _ ->
           {:reply, {:ok, url <> "?" <> URI.encode_query(query_params)}, state}
       end
     else
       {:error, :invalid_asset} ->
         {:reply, {:error, {:params, "Asset ID must be a non-empty string"}}, state}
+
       {:error, :invalid_url} ->
         {:reply, {:error, {:params, "Asset URL must be a valid URL"}}, state}
     end
   end
+
   def handle_call({:patch, patches}, _from, state) do
     http_client = Application.get_env(:sanityex, :http_client, Sanityex.DefaultHTTPClient)
 
-    with {:ok, url}   <- is_valid_url?(state[:query_url]),
-         headers      <- get_headers(state[:token]),
-         payload      <- Jason.encode(%{"mutations" => patches})
-    do
+    with {:ok, url} <- is_valid_url?(state[:query_url]),
+         headers <- get_headers(state[:token]),
+         payload <- Jason.encode(%{"mutations" => patches}) do
       case http_client.post(url, payload, headers) do
         {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
           {:reply, {:ok, body}, state}
+
         {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
           {:reply, {:error, {:sanity_error, status_code, body}}, state}
+
         {:error, %HTTPoison.Error{reason: reason}} ->
           {:reply, {:error, {:fetch_error, reason}}, state}
+
         _ ->
           {:reply, {:error, {:fetch_error, "Unknown error occurred during request"}}, state}
       end

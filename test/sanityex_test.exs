@@ -14,13 +14,14 @@ defmodule SanityexTest do
     Application.put_env(:sanityex, :http_client, SanityEx.MockHTTPClient)
 
     # Start the GenServer w/ some fake opts
-    {:ok, pid} = Client.start_link([
-      project_id: "123",
-      dataset: "production",
-      api_version: "v2021-06-07",
-      token: "abc123",
-      asset_url: "https://fakeasseturl.com"
-    ])
+    {:ok, pid} =
+      Client.start_link(
+        project_id: "123",
+        dataset: "production",
+        api_version: "v2021-06-07",
+        token: "abc123",
+        asset_url: "https://fakeasseturl.com"
+      )
 
     on_exit(fn ->
       Process.exit(pid, :kill)
@@ -36,13 +37,18 @@ defmodule SanityexTest do
     }
 
     SanityEx.MockHTTPClient
-    |> expect(:get,
+    |> expect(
+      :get,
       fn url, _headers ->
-        assert url == "https://123.api.sanity.io/v2021-06-07/data/query/production/?query=test", "Unexpected URL: #{url}"
-        {:ok, mock_response}
-      end)
+        assert url == "https://123.api.sanity.io/v2021-06-07/data/query/production/?query=test",
+               "Unexpected URL: #{url}"
 
-    assert {:ok, "{\"key\": \"value\"}"} = SanityEx.Client.query("test"), "Query did not return expected response"
+        {:ok, mock_response}
+      end
+    )
+
+    assert {:ok, "{\"key\": \"value\"}"} = SanityEx.Client.query("test"),
+           "Query did not return expected response"
   end
 
   test "Sanity error responses are handled" do
@@ -52,11 +58,15 @@ defmodule SanityexTest do
     }
 
     SanityEx.MockHTTPClient
-    |> expect(:get,
+    |> expect(
+      :get,
       fn _url, _headers ->
         {:ok, mock_response}
-      end)
+      end
+    )
 
-    assert {:error, {:sanity_error, 400, "{\"error\": \"error message\"}"}} = SanityEx.Client.query("test"), "Query did not return expected response"
+    assert {:error, {:sanity_error, 400, "{\"error\": \"error message\"}"}} =
+             SanityEx.Client.query("test"),
+           "Query did not return expected response"
   end
 end

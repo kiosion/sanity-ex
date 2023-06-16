@@ -1,6 +1,6 @@
-# Sanityex
+# SanityEx
 
-**TODO: Add description**
+A client for interacting with the Sanity API from an Elixir application.
 
 ## Installation
 

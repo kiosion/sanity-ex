@@ -18,7 +18,7 @@ defmodule SanityExQueryTest do
       |> Query.qualify("[0]")
       |> Query.build()
 
-    assert {:error, "Projections must be a list of strings or nested maps",
+    assert {:error, "Projections must be a string, list of strings, or nested maps",
             %Query{
               base_query: "*",
               filters: [
@@ -51,7 +51,7 @@ defmodule SanityExQueryTest do
       flunk("Should have raised error")
     rescue
       e in RuntimeError ->
-        assert "Projections must be a list of strings or nested maps" == e.message
+        assert "Projections must be a string, list of strings, or nested maps" == e.message
     end
   end
 
@@ -61,7 +61,39 @@ defmodule SanityExQueryTest do
       |> Query.filter(%{"_type" => "'post'"})
       |> Query.project([
         "title",
-        "body",
+        "body"
+      ])
+      |> Query.qualify("[0]")
+      |> Query.build()
+
+    assert "*[!(_id in path('drafts.**')) && _type == 'post']{title, body}[0]" ==
+             query
+  end
+
+  test "Query.project handles nested projections" do
+    query =
+      Query.new()
+      |> Query.filter(%{"_type" => "'post'"})
+      |> Query.project([
+        %{
+          "'author'" => [
+            "'name'",
+            "'slug'",
+            "'image'"
+          ]
+        }
+      ])
+      |> Query.build()
+
+    assert "*[!(_id in path('drafts.**')) && _type == 'post']{'author':{'name', 'slug', 'image'}}" ==
+             query
+  end
+
+  test "Query.project handles following refs" do
+    query =
+      Query.new(include_drafts: true)
+      |> Query.filter(%{"_type" => "'post'"})
+      |> Query.project([
         %{
           "'author'" => [
             ["'_id'", ["author", "_id", :follow]],
@@ -72,10 +104,19 @@ defmodule SanityExQueryTest do
           ]
         }
       ])
-      |> Query.qualify("[0]")
       |> Query.build()
 
-    assert "*[!(_id in path('drafts.**')) && _type == 'post']{title, body, 'author':{'_id':author->_id, '_type':author->_type, 'name':author->name, 'slug':author->slug, 'image':author->image}}[0]" ==
+    assert "*[_type == 'post']{'author':{'_id':author->_id, '_type':author->_type, 'name':author->name, 'slug':author->slug, 'image':author->image}}" ==
              query
+  end
+
+  test "Query.project handles direct property access from filters" do
+    query =
+      Query.new(include_drafts: true)
+      |> Query.filter(%{"_id" => "'some_id'"})
+      |> Query.project("title")
+      |> Query.build()
+
+    assert "*[_id == 'some_id'].title" == query
   end
 end

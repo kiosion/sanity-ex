@@ -118,10 +118,15 @@ defmodule SanityEx.Query do
   @spec project(Query.t(), any) ::
           {:error, String.t(), Query.t()} | Query.t()
   def project(%Query{} = template, projections) do
-    if is_list(projections) do
-      %{template | projections: template.projections ++ projections}
-    else
-      {:error, "Projections must be a list of strings or nested maps", template}
+    case projections do
+      projections when is_list(projections) ->
+        %{template | projections: template.projections ++ projections}
+
+      projection when is_map(projection) or is_binary(projection) ->
+        %{template | projections: template.projections ++ [projection]}
+
+      _ ->
+        {:error, "Projections must be a string, list of strings, or nested maps", template}
     end
   end
 
@@ -367,7 +372,8 @@ defmodule SanityEx.Query do
 
       # If only one projection is provided, don't wrap it in curly braces, as it can be a direct property access of the filter
       # However, only do this if filters are present, as otherwise it's a direct query (e.g. query length > 1)
-      [projection] when query_length > 1 ->
+      # This should also not occur if the projection contains nested projections - in that case, it should always be joined and wrapped
+      [projection] when query_length > 1 and is_binary(projection) ->
         query <> ".#{projection}"
 
       _ ->

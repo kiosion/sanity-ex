@@ -1,8 +1,8 @@
 defmodule SanityEx.Client do
   @moduledoc """
-  `SanityEx.Client` is a client for interacting with the Sanity API.
+  `SanityEx.Client` is used for interactions with the Sanity HTTP API.
 
-  It provides an interface for making queries and constructing URLs for asset IDs.
+  It provides an interface for making queries, sending patches, and constructing URLs for asset IDs.
   """
 
   use GenServer
@@ -24,13 +24,21 @@ defmodule SanityEx.Client do
 
   ## Examples
 
-      iex> SanityEx.Client.start_link(query_url: "https://...", asset_url: "https://...", token: "your_token")
+      iex> SanityEx.Client.start_link([
+          project_id: "https://...",
+          api_version: "v2021-06-07",
+          dataset: "dev",
+          asset_url: "https://...",
+          token: "your_token"
+        ])
 
   """
+  @spec start_link(Keyword.t()) :: {:ok, pid()} | {:error, any()}
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec init(Keyword.t()) :: {:ok, map()}
   def init(opts) do
     project_id = Keyword.get(opts, :project_id)
     api_version = Keyword.get(opts, :api_version)
@@ -105,28 +113,6 @@ defmodule SanityEx.Client do
   end
 
   @doc """
-  Returns the query URL that is currently being used by the client.
-
-  ## Examples
-
-      iex> SanityEx.Client.get_query_url()
-      "https://..."
-  """
-  @spec get_query_url() :: String.t()
-  def get_query_url(), do: GenServer.call(__MODULE__, :get_query_url)
-
-  @doc """
-  Returns the asset URL that is currently being used by the client.
-
-  ## Examples
-
-      iex> SanityEx.Client.get_asset_url()
-      "https://..."
-  """
-  @spec get_asset_url() :: String.t()
-  def get_asset_url(), do: GenServer.call(__MODULE__, :get_asset_url)
-
-  @doc """
   Executes a GROQ query against the Sanity API.
 
   Takes a GROQ query as a string and sends it to the Sanity API, returning the body of the response as a string,
@@ -187,9 +173,9 @@ defmodule SanityEx.Client do
   end
 
   @doc """
-  Constructs a CDN URL for a given Sanity image asset ID.
+  Constructs a CDN URL for a given Sanity asset ID.
 
-  Takes an image asset ID and optional query parameters map, and returns the constructed URL as a string.
+  Takes an asset ID and optional query parameters map, and returns the constructed URL as a string.
   It returns `{:ok, url}` on success, or an error tuple on failure.
 
   ## Params
@@ -254,9 +240,6 @@ defmodule SanityEx.Client do
   def patch(patches) do
     GenServer.call(__MODULE__, {:patch, patches})
   end
-
-  def handle_call(:get_query_url, _from, state), do: {:reply, state[:query_url], state}
-  def handle_call(:get_asset_url, _from, state), do: {:reply, state[:asset_url], state}
 
   def handle_call({:fetch, query, api_cdn}, _from, state) do
     http_client = Application.get_env(:sanityex, :http_client, Sanityex.DefaultHTTPClient)

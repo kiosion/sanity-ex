@@ -1,4 +1,4 @@
-defmodule SanityexTest do
+defmodule SanityExTest do
   use ExUnit.Case
 
   import Mox

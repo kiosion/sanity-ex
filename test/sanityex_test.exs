@@ -11,7 +11,7 @@ defmodule SanityExTest do
   Mox.defmock(SanityEx.MockHTTPClient, for: SanityEx.HTTPClient)
 
   setup do
-    Application.put_env(:sanityex, :http_client, SanityEx.MockHTTPClient)
+    Application.put_env(:sanity_ex, :http_client, SanityEx.MockHTTPClient)
 
     # Start the GenServer w/ some fake opts
     {:ok, pid} =

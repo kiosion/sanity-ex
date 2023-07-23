@@ -5,7 +5,7 @@ defmodule SanityEx.MixProject do
     [
       app: :sanity_ex,
       name: "SanityEx",
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.14",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
@@ -14,7 +14,6 @@ defmodule SanityEx.MixProject do
       description: description(),
       source_url: "https://github.com/kiosion/sanity-ex",
       docs: [
-        main: "SanityEx",
         extras: ["README.md"]
       ]
     ]

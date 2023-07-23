@@ -43,7 +43,10 @@ defmodule SanityEx.Client do
     project_id = Keyword.get(opts, :project_id)
     api_version = Keyword.get(opts, :api_version)
     dataset = Keyword.get(opts, :dataset, "production")
-    asset_url = Keyword.get(opts, :asset_url)
+
+    asset_url =
+      Keyword.get(opts, :asset_url, "https://cdn.sanity.io/images/#{project_id}/#{dataset}/")
+
     token = Keyword.get(opts, :token)
 
     state = %{

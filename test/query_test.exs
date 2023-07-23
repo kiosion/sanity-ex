@@ -15,7 +15,7 @@ defmodule SanityExQueryTest do
         ]
       ])
       |> Query.project(0)
-      |> Query.qualify("[0]")
+      |> Query.slice(0)
       |> Query.build()
 
     assert {:error, "Projections must be a string, list of strings, or nested maps",
@@ -27,9 +27,9 @@ defmodule SanityExQueryTest do
                 [%{"_id" => "'some_id'"}, %{"slug.current" => "'some_other_id'"}, %{join: "||"}]
               ],
               projections: [],
-              scope_qualifier: "",
               order: [],
-              limit: 0
+              # Slice won't have been set due to earlier error
+              slice: nil
             }} == result
   end
 
@@ -45,7 +45,7 @@ defmodule SanityExQueryTest do
         ]
       ])
       |> Query.project(0)
-      |> Query.qualify("[0]")
+      |> Query.slice(0)
       |> Query.build!()
 
       flunk("Should have raised error")
@@ -63,7 +63,7 @@ defmodule SanityExQueryTest do
         "title",
         "body"
       ])
-      |> Query.qualify("[0]")
+      |> Query.slice(0)
       |> Query.build()
 
     assert "*[!(_id in path('drafts.**')) && _type == 'post']{title, body}[0]" ==

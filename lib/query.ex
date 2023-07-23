@@ -3,8 +3,7 @@ defmodule SanityEx.Query do
   `SanityEx.Query` is used for constructing GROQ queries from Elixir syntax.
 
   ## Example
-      iex> query = Query.new()
-      iex> query
+      iex> Query.new()
         |> Query.filter(%{"_type" => "'post'"})
         |> Query.project([
           "title",
@@ -19,7 +18,7 @@ defmodule SanityEx.Query do
             ]
           }
         ])
-        |> Query.qualify("[0]")
+        |> Query.slice(0)
         |> Query.build()
       "*[!(_id in path('drafts.**')) && _type == 'post']{title, body, 'author':{'_id':author->_id, '_type':author->_type, 'name':author->name, 'slug':author->slug, 'image':author->image}}[0]"
   """
@@ -30,27 +29,26 @@ defmodule SanityEx.Query do
     :base_query,
     :filters,
     :projections,
-    :scope_qualifier,
     :order,
-    :limit
+    :slice
   ]
 
   @type t :: %__MODULE__{
           base_query: String.t(),
           filters: list(),
           projections: list(),
-          scope_qualifier: String.t(),
           order: list(),
-          limit: integer() | {integer(), integer()}
+          slice: nil | integer() | String.t() | {integer(), integer()}
         }
 
   @doc """
   Initialize the building of a GROQ query pipeline. Returns a SanityEx.Query struct representing a GROQ query.
 
   ## Options
-    - `:include_drafts` - If set to `true`, the query will include draft documents.
-    - `:base_query` - If set, the query will use this as its base instead of `*`.
+    - `:include_drafts` - If set, the query will include draft documents.
+    - `:base_query` - If set, the query will use this as its basis instead of `*`.
   """
+  @doc since: "0.1.0"
   @spec new(Keyword.t()) :: t()
   def new(opts \\ []) do
     include_drafts = Keyword.get(opts, :include_drafts, false)
@@ -67,18 +65,25 @@ defmodule SanityEx.Query do
       base_query: base_query,
       filters: filters,
       projections: [],
-      scope_qualifier: "",
       order: [],
-      limit: 0
+      slice: nil
     }
   end
 
   @doc """
   Add a filter to the query. The filter retains documents for which the expression evaluates to true.
 
+  In a GROQ query, the Filter expression is the first expression in the query, and is wrapped in square brackets.
+
   ## Example
-    iex> filter(query, [ %{ "_type" => "'post'" }, [{ "_id" => "'id'" }, { "slug.current" => "'slug'" }, { :join => "||" }] ])
+  ```elixir
+    filter(query, [ %{ "_type" => "'post'" }, [{ "_id" => "'id'" }, { "slug.current" => "'slug'" }, { :join => "||" }] ])
+    # => *[_type == 'post' && (_id == 'id' || slug.current == 'slug')]
+  ```
+
+  Read more about [filtering queries](https://www.sanity.io/docs/query-cheat-sheet#3949cadc7524)
   """
+  @doc since: "0.1.0"
   @spec filter(Query.t(), maybe_improper_list() | map()) ::
           {:error, String.t(), Query.t()} | Query.t()
   def filter(%Query{} = template, [key, val]) when not is_map(key) and not is_map(val) do
@@ -110,11 +115,33 @@ defmodule SanityEx.Query do
   end
 
   @doc """
-  Adds projection(s) to the query. This determines how the results of the query should be formatted.
+  Adds object projection(s) to the query. This determines how the results of the query should be formatted.
 
   ## Example
-    iex> project(query, ["_id", ["'objectID'", "_id"], "_rev", "_type", "title", ... ])
+  ```elixir
+    project(query, ["_id", ["'objectID'", "_id"], "_rev", "_type", "title", ... ])
+    # => *[_type == 'post']{_id, 'objectID':_id, _rev, _type, title, ... }
+  ```
+
+  In order to Join certain attributes inside a projection, you can use a nested map with the `:follow` atom present:
+  ```elixir
+    project(
+      query,
+      [
+        "_id",
+        %{
+          "'author'" => [
+            ["'_id'", ["author", "_id", :follow]]
+          ]
+        }
+      ]
+    )
+    # => *[_type == 'post']{_id, 'author':{'_id':author->_id}}
+  ```
+
+  Read more about [object projections](https://www.sanity.io/docs/query-cheat-sheet#55d30f6804cc)
   """
+  @doc since: "0.1.0"
   @spec project(Query.t(), any) ::
           {:error, String.t(), Query.t()} | Query.t()
   def project(%Query{} = template, projections) do
@@ -135,39 +162,24 @@ defmodule SanityEx.Query do
   end
 
   @doc """
-  Adds a scope qualifier to the query. Scope qualifiers allow identifiers to refer to different attributes in different contexts.
-
-  ## Example
-    iex> qualify(query, "[0]")
-  """
-  @spec qualify(Query.t(), any) ::
-          {:error, String.t(), Query.t()} | Query.t()
-  def qualify(%Query{} = template, key) do
-    case key do
-      key when is_binary(key) ->
-        %{template | scope_qualifier: key}
-
-      _ ->
-        {:error, "Qualifier must be a string", template}
-    end
-  end
-
-  def qualify({:error, reason, template}, _key) do
-    {:error, reason, template}
-  end
-
-  @doc """
   Specify the ordering of the results of the query.
 
   ## Example
-    iex> set_order(query, "_createdAt desc")
-    iex> set_order(query, ["_createdAt", "desc"])
+  ```elixir
+    order(query, "_createdAt desc")
+    # or, equivalently:
+    order(query, ["_createdAt", "desc"])
+    # => *[_type == 'post'] | order(_createdAt desc)
+  ```
 
-  The example above orders the query results by the `_createdAt` attribute in descending order.
+  The examples above order the query results by the `_createdAt` attribute in descending order.
+
+  Read more about [ordering results](https://www.sanity.io/docs/query-cheat-sheet#b5aec96cf56c)
   """
-  @spec set_order(Query.t(), integer() | String.t() | maybe_improper_list()) ::
+  @doc since: "0.1.0"
+  @spec order(Query.t(), integer() | String.t() | maybe_improper_list()) ::
           {:error, String.t(), Query.t()} | Query.t()
-  def set_order(%Query{} = template, order) do
+  def order(%Query{} = template, order) do
     case order do
       order when is_binary(order) ->
         %{template | order: [order]}
@@ -180,44 +192,49 @@ defmodule SanityEx.Query do
     end
   end
 
-  def set_order({:error, reason, template}, _order) do
+  def order({:error, reason, template}, _order) do
     {:error, reason, template}
   end
 
   @doc """
-  Set the limit of the number of results the query should return.
+  Slice the results returned by the query, or access a specific index.
 
   ## Example
-    iex> set_limit(query, 5)
+  ```elixir
+    slice(query, {0, 5})
+    # => *[_type == 'post'][0...5]
+    slice(query, 0)
+    # => *[_type == 'post'][0]
+  ```
 
-  The example above limits the query results to a maximum of 5 documents.
+  The first example above limits the query results to a maximum of 5 documents, starting at index 0. The second returns only the first index of the query results.
+
+  Read more about [slicing query results](https://www.sanity.io/docs/query-cheat-sheet#aa94b64a5bf5)
   """
-  @spec set_limit(Query.t(), integer() | {integer(), integer()}) ::
+  @doc since: "0.1.0"
+  @spec slice(Query.t(), integer() | String.t() | {integer(), integer()}) ::
           {:error, String.t(), Query.t()} | Query.t()
-  def set_limit(%Query{} = template, limit) do
-    case limit do
+  def slice(%Query{} = template, slice) do
+    case slice do
       {offset, limit}
       when is_integer(offset) and is_integer(limit) and offset >= 0 and limit > 0 ->
-        %{template | limit: {offset, limit}}
-
-      limit when is_integer(limit) and limit > 0 ->
-        %{template | limit: limit}
+        %{template | slice: {offset, limit}}
 
       {offset, limit}
       when is_integer(offset) and is_integer(limit) and offset == 0 and limit == 0 ->
         template
 
-      limit when is_integer(limit) and limit == 0 ->
-        template
+      slice when (is_integer(slice) and slice >= 0) or is_binary(slice) ->
+        %{template | slice: slice}
 
       _ ->
         {:error,
-         "Limit must be a positive integer or a tuple of {offset, limit} where both are > 0",
+         "Slice must be a positive integer, a binary, or a tuple of {offset, limit} where both are positive integers",
          template}
     end
   end
 
-  def set_limit({:error, reason, template}, _limit) do
+  def slice({:error, reason, template}, _slice) do
     {:error, reason, template}
   end
 
@@ -226,21 +243,20 @@ defmodule SanityEx.Query do
 
   The final query is returned as a string.
   """
-  @spec build(query :: t()) :: {:error, String.t(), Query.t()} | String.t()
+  @doc since: "0.1.0"
+  @spec build(Query.t()) :: {:error, String.t(), Query.t()} | String.t()
   def build(%Query{
         base_query: base_query,
         filters: filters,
         projections: projections,
-        scope_qualifier: qualifier,
         order: order,
-        limit: limit
+        slice: slice
       }) do
     base_query
     |> build_filters(filters)
     |> build_projections(projections)
-    |> build_qualifier(qualifier)
     |> build_order(order)
-    |> build_limit(limit)
+    |> build_slice(slice)
   end
 
   def build({:error, reason, template}) do
@@ -252,21 +268,12 @@ defmodule SanityEx.Query do
 
   The final query is returned as a string, or an error is raised if the query could not be built.
   """
+  @doc since: "0.1.0"
   @spec build!(Query.t()) :: String.t()
   def build!(query) do
     case build(query) do
       {:error, reason, _} -> raise reason
       query_str -> query_str
-    end
-  end
-
-  defp build_qualifier(query_str, qualifier) do
-    case qualifier do
-      qualifier when is_binary(qualifier) and qualifier != "" ->
-        query_str <> qualifier
-
-      _ ->
-        query_str
     end
   end
 
@@ -437,16 +444,16 @@ defmodule SanityEx.Query do
     end
   end
 
-  defp build_limit(query_str, limit) do
-    case limit do
-      0 ->
+  defp build_slice(query_str, slice) do
+    case slice do
+      nil ->
         query_str
 
       {offset, limit} ->
         query_str <> " [#{offset}...#{offset + limit}]"
 
-      limit when is_binary(limit) or is_integer(limit) ->
-        query_str <> " [0...#{limit}]"
+      slice when is_binary(slice) or is_integer(slice) ->
+        query_str <> "[#{slice}]"
 
       _ ->
         query_str

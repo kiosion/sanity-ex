@@ -2,6 +2,8 @@
 
 A client for interacting with the Sanity API and constructing GROQ queries from Elixir applications.
 
+This is a very primitive implementation, built mostly for practice & my own use, and only supports _some_ of GROQ's syntax. Please feel free to contribute!
+
 ## Installation
 
 Add `sanity_ex` to your list of dependencies in `mix.exs`:
@@ -48,13 +50,15 @@ SanityEx.Client.query("*[_type == 'movie']{title, releaseYear}")
 
 ### Options
 
-The following options are available when configuring the client:
+The following options are required when configuring the client:
 
-- `project_id` - The project ID for your Sanity project
-- `dataset` - The dataset to use for the API calls
-- `api_version` - The API version to use
-- `token` - The token to use for authentication
-- `asset_url` - The URL to use for asset URLs (defaults to `cdn.sanity.io/images/{project_id}/{dataset}/`)
+- `project_id` - The project ID for your Sanity project.
+- `api_version` - The dated version of the Sanity API to use.
+- `token` - The API token for making authorized requests.
+
+The following are optional:
+- `dataset` - The dataset to query against. Defaults to `production`.
+- `asset_url` - The base asset URL to use. Defaults to `cdn.sanity.io/images/{project_id}/{dataset}/`.
 
 ## Documentation
 

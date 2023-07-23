@@ -1,4 +1,6 @@
 defmodule SanityEx.DefaultHTTPClient do
+  @moduledoc false
+
   @behaviour SanityEx.HTTPClient
 
   def get(url, headers) do

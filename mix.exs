@@ -12,7 +12,11 @@ defmodule SanityEx.MixProject do
       deps: deps(),
       package: package(),
       description: description(),
-      source_url: "https://github.com/kiosion/sanity-ex"
+      source_url: "https://github.com/kiosion/sanity-ex",
+      docs: [
+        main: "SanityEx",
+        extras: ["README.md"]
+      ]
     ]
   end
 
@@ -22,8 +26,7 @@ defmodule SanityEx.MixProject do
 
   defp package do
     [
-      files:
-        ~w(lib mix.exs README* readme* LICENSE* license* CHANGELOG* changelog* src .formatter.exs),
+      files: ~w(lib mix.exs README* LICENSE* .formatter.exs),
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/kiosion/sanity-ex"}
     ]

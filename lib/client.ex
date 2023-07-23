@@ -16,21 +16,23 @@ defmodule SanityEx.Client do
 
   ## Options
 
-  * `:project_id` - The ID of the Sanity project.
+  * `:project_id` - The project ID for your Sanity project
   * `:api_version` - The dated version of the Sanity API to use.
-  * `:dataset` - The dataset to query against. Defaults to "production".
-  * `:asset_url` - The base URL for constructing asset URLs.
   * `:token` - The API token for making authorized requests.
+
+  The following are optional:
+  * `:dataset` - The dataset to query against. Defaults to `production`.
+  * `:asset_url` - The base asset URL to use. Defaults to `cdn.sanity.io/images/{project_id}/{dataset}/`.
 
   ## Examples
 
       iex> SanityEx.Client.start_link([
-          project_id: "abcd1234",
+          project_id: "your_project_id",
           api_version: "v2021-06-07",
           dataset: "dev",
-          asset_url: "https://...",
           token: "your_token"
         ])
+      {:ok, %{ ... }}
 
   """
   @spec start_link(Keyword.t()) :: {:ok, pid()} | {:error, any()}

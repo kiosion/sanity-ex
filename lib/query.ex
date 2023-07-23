@@ -48,7 +48,7 @@ defmodule SanityEx.Query do
   Initialize the building of a GROQ query pipeline. Returns a SanityEx.Query struct representing a GROQ query.
 
   ## Options
-    - `:include_drafts` - If set to `true`, the query will include drafts.
+    - `:include_drafts` - If set to `true`, the query will include draft documents.
     - `:base_query` - If set, the query will use this as its base instead of `*`.
   """
   @spec new(Keyword.t()) :: t()
@@ -161,6 +161,7 @@ defmodule SanityEx.Query do
 
   ## Example
     iex> set_order(query, "_createdAt desc")
+    iex> set_order(query, ["_createdAt", "desc"])
 
   The example above orders the query results by the `_createdAt` attribute in descending order.
   """

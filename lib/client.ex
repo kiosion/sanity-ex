@@ -25,7 +25,7 @@ defmodule SanityEx.Client do
   ## Examples
 
       iex> SanityEx.Client.start_link([
-          project_id: "https://...",
+          project_id: "abcd1234",
           api_version: "v2021-06-07",
           dataset: "dev",
           asset_url: "https://...",
@@ -105,8 +105,7 @@ defmodule SanityEx.Client do
       to_string(state[:api_version]),
       "/data/query/",
       to_string(state[:dataset]),
-      "/",
-      "?",
+      "/?",
       URI.encode_query(%{"query" => query})
     ]
     |> Enum.join()
@@ -192,7 +191,8 @@ defmodule SanityEx.Client do
       {:ok, "https://cdn.sanity.io/images/...?w=100&h=100"}
 
   """
-  @spec url_for(String.t(), map()) :: {:ok, String.t()} | {:error, {:params, String.t()}}
+  @spec url_for(String.t(), map() | String.t()) ::
+          {:ok, String.t()} | {:error, {:params, String.t()}}
   def url_for(asset_id, query_params \\ %{}),
     do: GenServer.call(__MODULE__, {:url_for, asset_id, query_params})
 
@@ -242,7 +242,7 @@ defmodule SanityEx.Client do
   end
 
   def handle_call({:fetch, query, api_cdn}, _from, state) do
-    http_client = Application.get_env(:sanityex, :http_client, Sanityex.DefaultHTTPClient)
+    http_client = Application.get_env(:sanity_ex, :http_client, SanityEx.DefaultHTTPClient)
 
     with {:ok, query} <- is_valid_query?(query),
          {:ok, url} <- is_valid_url?(construct_query_url(state, query, api_cdn)),
@@ -276,6 +276,9 @@ defmodule SanityEx.Client do
         %{} ->
           {:reply, {:ok, url}, state}
 
+        params when is_binary(params) ->
+          {:reply, {:ok, url <> "?" <> params}, state}
+
         _ ->
           {:reply, {:ok, url <> "?" <> URI.encode_query(query_params)}, state}
       end
@@ -289,7 +292,7 @@ defmodule SanityEx.Client do
   end
 
   def handle_call({:patch, patches}, _from, state) do
-    http_client = Application.get_env(:sanityex, :http_client, Sanityex.DefaultHTTPClient)
+    http_client = Application.get_env(:sanity_ex, :http_client, SanityEx.DefaultHTTPClient)
 
     with {:ok, url} <- is_valid_url?(state[:query_url]),
          headers <- get_headers(state[:token]),
